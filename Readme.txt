@@ -16,3 +16,5 @@ Built-in operations include:
 - Hexagonal Manhattan (grid-step) distance.
 - Vector addition, subtraction and scaling.
 - Robust hashing, or so I'm told.
+
+Discussion and modest support at http://www.settworks.com/forum/
