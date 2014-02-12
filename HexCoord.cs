@@ -250,15 +250,21 @@ namespace Settworks.Hexagons {
 
 		/// <summary>Determines whether this hex is within a specified rectangle.</summary>
 		/// <returns><c>true</c> if this instance is within the specified rectangle; otherwise, <c>false</c>.</returns>
-		/// <remarks>
-		/// Corners are diagonally opposite, and may be specified in any order.
-		/// <para>The rectangle is represented by conversion to offset coordinates.
-		/// </remarks>
 		public bool IsWithinRectangle(HexCoord cornerA, HexCoord cornerB) {
-			return O >= Math.Min(cornerA.O, cornerB.O)
-					&& O <= Math.Max(cornerA.O, cornerB.O)
-					&& r >= Math.Min(cornerA.r, cornerB.r)
-					&& r <= Math.Max(cornerA.r, cornerB.r);
+			int height = Math.Abs(cornerA.r - cornerB.r);
+			int row = (r - cornerA.r) * (cornerA.r <= cornerB.r? 1: -1);
+			if (row > height || row < 0)
+				return false;
+			int width = Math.Abs(cornerA.O - cornerB.O);
+			bool reverse = cornerA.O > cornerB.O;
+			bool trim = height % 2 == 0;
+			bool offset = cornerA.r % 2 != 0;
+			bool odd = row % 2 != 0;
+			int xMax = width + (!reverse && trim && odd || !trim && !odd && (reverse ^ (offset && width != 0))? -1: 0);
+			int x = (O - cornerA.O) * (reverse? -1: 1);
+			if (x > xMax || x < (odd && reverse ^ offset && width != 0? 1: 0))
+				return false;
+			return true;
 		}
 
 		/// <summary>Returns a <see cref="System.String"/> that represents the current <see cref="Settworks.Hexagons.HexCoord"/>.</summary>
