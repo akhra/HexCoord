@@ -467,8 +467,10 @@ namespace Settworks.Hexagons {
 		static readonly Vector2 X_QR = new Vector2(SQRT3/3, 0);
 		static readonly Vector2 Y_QR = new Vector2(-1/3f, 2/3f);
 		// Modulo where sign of result matches the divisor.
-		static int smod(int a, int b)
-		{ return a % b + ((a < 0 ^ b < 0)? b: 0); }
+		static int smod(int a, int b) {
+			if (a < 0 ^ b < 0) return (a % b + b) % b;
+			return a % b;
+		}
 
 	}
 
