@@ -17,4 +17,4 @@ For performance reasons, HexCoord is a struct. Because Unity does not serialize 
 - Vector addition, subtraction and scaling.
 - Robust hashing, or so I'm told.
 
-Discussion and modest support at http://www.settworks.com/forum/hexcoord
+HexCoord is a key component of the non-free HexKit package, and is fully described in HexKit's [documentation](http://settworks.com/images/pdf/HexKit%20Documentation.pdf). Discussion and modest support at http://www.settworks.com/forum/hexkit
