@@ -221,6 +221,26 @@ namespace Settworks.Hexagons {
 		}
 
 		/// <summary>
+		/// Get the half sextant of origin containing this hex.
+		/// </summary>
+		/// <remarks>
+		/// CornerSextant is HalfSextant/2. NeighborSextant is (HalfSextant+1)/2.
+		/// </remarks>
+		public int HalfSextant() {
+			if (q > 0 && r >= 0 || q == 0 && r == 0)
+				return (q > r)? 0 : 1;
+			if (q <= 0 && r > 0)
+				return (-q < r)?
+					(r > -2 * q)? 2: 3:
+					(q > -2 * r)? 4: 5;
+			if (q < 0)
+				return (q < r)? 6: 7;
+			return (-r > q)?
+				(r < -2 * q)? 8: 9:
+				(q < -2 * r)? 10: 11;
+		} 
+
+		/// <summary>
 		/// Get the corner index of 0,0 closest to this hex's polar vector.
 		/// </summary>
 		public int CornerSextant() {
@@ -253,14 +273,14 @@ namespace Settworks.Hexagons {
 		/// </returns>
 		/// <param name="sextants">How many sextants to rotate by.</param>
 		public HexCoord SextantRotation(int sextants) {
-			if (this == default(HexCoord)) return this;
-			sextants = smod(sextants, 6);
+			if (this == origin) return this;
+			sextants = NormalizeRotationIndex(sextants, 6);
 			if (sextants == 0) return this;
-			if (sextants == 1) return new HexCoord(-r, Z);
+			if (sextants == 1) return new HexCoord(-r, -Z);
 			if (sextants == 2) return new HexCoord(Z, q);
 			if (sextants == 3) return new HexCoord(-q, -r);
 			if (sextants == 4) return new HexCoord(r, Z);
-			return new HexCoord(Z, -q);
+			return new HexCoord(-Z, -q);
 		}
 
 		/// <summary>
@@ -272,19 +292,16 @@ namespace Settworks.Hexagons {
 		/// <param name="axis">A corner index through which the axis passes.</param>
 		/// <returns>A new <see cref="Settworks.Hexagons.HexCoord"/> representing this one after mirroring.</returns>
 		public HexCoord Mirror(int axis = 1) {
-			if (this == default(HexCoord)) return this;
-			axis = smod(axis, 3);
+			if (this == origin) return this;
+			axis = NormalizeRotationIndex(axis, 3);
 			if (axis == 0) return new HexCoord(r, q);
 			if (axis == 1) return new HexCoord(Z, r);
 			return new HexCoord(q, Z);
 		}
 
 		/// <summary>
-		/// Scale as a vector.
+		/// Scale as a vector, truncating result.
 		/// </summary>
-		/// <remarks>
-		/// Scaling is done in floating point, then truncated to integers.
-		/// </remarks>
 		/// <returns>A new <see cref="Settworks.Hexagons.HexCoord"/> representing this one after scaling.</returns>
 		public HexCoord Scale(float factor)
 		{ return new HexCoord((int)(q * factor), (int)(r * factor)); }
@@ -306,20 +323,56 @@ namespace Settworks.Hexagons {
 		/// </summary>
 		/// <returns><c>true</c> if this instance is within the specified rectangle; otherwise, <c>false</c>.</returns>
 		public bool IsWithinRectangle(HexCoord cornerA, HexCoord cornerB) {
-			int height = Math.Abs(cornerA.r - cornerB.r);
-			int row = (r - cornerA.r) * (cornerA.r <= cornerB.r? 1: -1);
-			if (row > height || row < 0)
+			if (r > cornerA.r && r > cornerB.r || r < cornerA.r && r < cornerB.r)
 				return false;
+			bool reverse = cornerA.O > cornerB.O;	// Travel right to left.
+			bool offset = cornerA.r % 2 != 0;	// Starts on an odd row, bump alternate rows left.
+			bool trim = Math.Abs(cornerA.r - cornerB.r) % 2 == 0;	// Even height, trim alternate rows.
+			bool odd = (r - cornerA.r) % 2 != 0; // This is an alternate row.
 			int width = Math.Abs(cornerA.O - cornerB.O);
-			bool reverse = cornerA.O > cornerB.O;
-			bool trim = height % 2 == 0;
-			bool offset = cornerA.r % 2 != 0;
-			bool odd = row % 2 != 0;
-			int xMax = width + (!reverse && trim && odd || !trim && !odd && (reverse ^ (offset && width != 0))? -1: 0);
+			bool hasWidth = width != 0;
+			if (reverse && (odd && (trim || !offset) || !(trim || offset || odd))
+			    || !reverse && (trim && odd || offset && !trim && hasWidth))
+				width -= 1;
 			int x = (O - cornerA.O) * (reverse? -1: 1);
-			if (x > xMax || x < (odd && reverse ^ offset && width != 0? 1: 0))
-				return false;
-			return true;
+			if (reverse && odd && !offset
+			    || !reverse && offset && odd && hasWidth)
+				x -= 1;
+			return (x <= width && x >= 0);
+		}
+
+		/// <summary>
+		/// Determines whether this hex is on the infinite line passing through points a and b.
+		/// </summary>
+		public bool IsOnCartesianLine(Vector2 a, Vector2 b) {
+			Vector2 AB = b - a;
+			bool bias = Vector3.Cross(AB, Corner(0) - a).z > 0;
+			for (int i = 1; i < 6; i++) {
+				if (bias != (Vector3.Cross(AB, Corner(i) - a).z > 0))
+					return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Determines whether this the is on the line segment between points a and b.
+		/// </summary>
+		public bool IsOnCartesianLineSegment(Vector2 a, Vector2 b) {
+			Vector2 AB = b - a;
+			float mag = AB.sqrMagnitude;
+			Vector2 AC = Corner(0) - a;
+			bool within = AC.sqrMagnitude <= mag && Vector2.Dot(AB, AC) >= 0;
+			int sign = Math.Sign(Vector3.Cross(AB, AC).z);
+			for (int i = 1; i < 6; i++) {
+				AC = Corner(i) - a;
+				bool newWithin = AC.sqrMagnitude <= mag && Vector2.Dot(AB, AC) >= 0;
+				int newSign =	Math.Sign(Vector3.Cross(AB, AC).z);
+				if ((within || newWithin) && (sign * newSign <= 0))
+					return true;
+				within = newWithin;
+				sign = newSign;
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -349,6 +402,23 @@ namespace Settworks.Hexagons {
 		}
 
 		/// <summary>
+		/// Normalize a rotation index within 0 <= index < cycle.
+		/// </summary>
+		public static int NormalizeRotationIndex(int index, int cycle = 6) {
+			if (index < 0 ^ cycle < 0)
+				return (index % cycle + cycle) % cycle;
+			else
+				return index % cycle;
+		}
+
+		/// <summary>
+		/// Determine the equality of two rotation indices for a given cycle.
+		/// </summary>
+		public static bool IsSameRotationIndex(int a, int b, int cycle = 6) {
+			return 0 == NormalizeRotationIndex(a - b, cycle);
+		}
+
+		/// <summary>
 		/// Vector from a hex to a neighbor.
 		/// </summary>
 		/// <remarks>
@@ -356,7 +426,7 @@ namespace Settworks.Hexagons {
 		/// </remarks>
 		/// <param name="index">Index of the desired neighbor vector. Cyclically constrained 0..5.</param>
 		public static HexCoord NeighborVector(int index)
-		{ return neighbors[smod(index, 6)]; }
+		{ return neighbors[NormalizeRotationIndex(index, 6)]; }
 
 		/// <summary>
 		/// Enumerate the six neighbor vectors.
@@ -370,7 +440,7 @@ namespace Settworks.Hexagons {
 				foreach (HexCoord hex in neighbors)
 					yield return hex;
 			} else {
-				first = smod(first, 6);
+				first = NormalizeRotationIndex(first, 6);
 				for (int i = first; i < 6; i++)
 					yield return neighbors[i];
 				for (int i = 0; i < first; i++)
@@ -398,7 +468,7 @@ namespace Settworks.Hexagons {
 		/// </remarks>
 		/// <param name="index">Index of the desired corner. Cyclically constrained 0..5.</param>
 		public static Vector2 CornerVector(int index) {
-			return corners[smod(index, 6)];
+			return corners[NormalizeRotationIndex(index, 6)];
 		}
 
 		/// <summary>
@@ -413,7 +483,7 @@ namespace Settworks.Hexagons {
 				foreach (Vector2 v in corners)
 					yield return v;
 			} else {
-				first = smod(first, 6);
+				first = NormalizeRotationIndex(first, 6);
 				for (int i = first; i < 6; i++)
 					yield return corners[i];
 				for (int i = 0; i < first; i++)
@@ -448,9 +518,9 @@ namespace Settworks.Hexagons {
 		/// <param name="radius">Hex distance from 0,0.</param>
 		/// <param name="index">Counterclockwise index.</param>
 		public static HexCoord AtPolar(int radius, int index) {
-			if (radius == 0) return default(HexCoord);
+			if (radius == 0) return origin;
 			if (radius < 0) radius = -radius;
-			index = smod(index, radius * 6);
+			index = NormalizeRotationIndex(index, radius * 6);
 			int sextant = index / radius;
 			index %= radius;
 			if (sextant == 0) return new HexCoord(radius - index, index);
@@ -524,6 +594,29 @@ namespace Settworks.Hexagons {
 			return QRvector.x*Q_XY + QRvector.y*R_XY;
 		}
 
+		/// <summary>
+		/// Get the corners of a QR-space rectangle containing every cell touching an XY-space rectangle.
+		/// </summary>
+		public static HexCoord[] CartesianRectangleBounds(Vector2 cornerA, Vector2 cornerB) {
+			Vector2 min = new Vector2(Math.Min(cornerA.x, cornerB.x), Math.Min(cornerA.y, cornerB.y));
+			Vector2 max = new Vector2(Math.Max(cornerA.x, cornerB.x), Math.Max(cornerA.y, cornerB.y));
+			HexCoord[] results = {
+				HexCoord.AtPosition(min),
+				HexCoord.AtPosition(max)
+			};
+			Vector2 pos = results[0].Position();
+			if ((pos + corners[0]).y <= min.y || (pos + corners[5]).y >= min.y)
+				results[0] += neighbors[4];
+			else if ((pos + corners[1]).x <= min.x)
+				results[0] += neighbors[3];
+			pos = results[1].Position();
+			if ((pos + corners[2]).y <= max.y || (pos + corners[3]).y >= max.y)
+				results[1] += neighbors[1];
+			else if ((pos + corners[1]).x >= max.x)
+				results[1] += neighbors[0];
+			return results;
+		}
+
 		/*
 		 * Operators
 		 */
@@ -543,17 +636,33 @@ namespace Settworks.Hexagons {
 		// Mandatory overrides: Equals(), GetHashCode()
 		public override bool Equals(object o)
 		{ return (o is HexCoord) && this == (HexCoord)o; }
-		public override int GetHashCode()	{
-			ulong Q = (q < 0)? ((ulong)-q <<1) -1: (ulong)q <<1;
-			ulong R = (r < 0)? ((ulong)-r <<1) -1: (ulong)r <<1;
-			return ((Q<<32) + R).GetHashCode();
+		public override int GetHashCode() {
+			return q&1 | (r&1)<<1 | (q&2)<<1 | (r&2)<<2 |
+			       (q&4)<<2 | (r&4)<<3 | (q&8)<<3 | (r&8)<<4 |
+			       (q&16)<<4 | (r&16)<<5 | (q&32)<<5 | (r&32)<<6 |
+			       (q&64)<<6 | (r&64)<<7 | (q&128)<<7 | (r&128)<<8 |
+			       (q&256)<<8 | (r&256)<<9 | (q&512)<<9 | (r&512)<<10 |
+			       (q&1024)<<10 | (r&1024)<<11 | (q&2048)<<11 | (r&2048)<<12 |
+			       (q&4096)<<12 | (r&4096)<<13 | (q&8192)<<13 | (r&8192)<<14 |
+			       (q&16384)<<14 | (r&16384)<<15 | (q&32768)<<15 | (r&32768)<<16;
 		}
 
 		/*
-		 * Internal
+		 * Constants
 		 */
 
-		// The directions array. Private to prevent overwriting elements.
+		
+		/// <summary>
+		/// One sixth of a full rotation (radians).
+		/// </summary>
+		public static readonly float SEXTANT = Mathf.PI / 3;
+		
+		/// <summary>
+		/// Square root of 3.
+		/// </summary>
+		public static readonly float SQRT3 = Mathf.Sqrt(3);
+
+		// The directions array. These are private to prevent overwriting elements.
 		static readonly HexCoord[] neighbors = {
 			new HexCoord(1, 0),
 			new HexCoord(0, 1),
@@ -562,8 +671,8 @@ namespace Settworks.Hexagons {
 			new HexCoord(0, -1),
 			new HexCoord(1, -1)
 		};
-		// Corner locations in XY space.
-		public static readonly float SEXTANT = Mathf.PI / 3;
+
+		// Corner locations in XY space. Private for same reason as neighbors.
 		static readonly Vector2[] corners = {
 			new Vector2(Mathf.Sin(SEXTANT), Mathf.Cos(SEXTANT)),
 			new Vector2(0, 1),
@@ -572,17 +681,13 @@ namespace Settworks.Hexagons {
 			new Vector2(0, -1),
 			new Vector2(Mathf.Sin(Mathf.PI - SEXTANT), Mathf.Cos(Mathf.PI - SEXTANT))
 		};
+
 		// Vector transformations between QR and XY space.
-		public static readonly float SQRT3 = Mathf.Sqrt(3);
+		// Private to keep IntelliSense tidy. Safe to make public, but sensible uses are covered above.
 		static readonly Vector2 Q_XY = new Vector2(SQRT3, 0);
 		static readonly Vector2 R_XY = new Vector2(SQRT3/2, 1.5f);
 		static readonly Vector2 X_QR = new Vector2(SQRT3/3, 0);
 		static readonly Vector2 Y_QR = new Vector2(-1/3f, 2/3f);
-		// Modulo where sign of result matches the divisor.
-		static int smod(int a, int b) {
-			if (a < 0 ^ b < 0) return (a % b + b) % b;
-			return a % b;
-		}
 
 	}
 }
