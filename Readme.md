@@ -15,6 +15,6 @@ For performance reasons, HexCoord is a struct. Because Unity does not serialize 
 - Mirror across the three diagonals.
 - Hexagonal Manhattan (grid-step) distance.
 - Vector addition, subtraction and scaling.
-- Robust hashing, or so I'm told.
+- Fast hashing with no collisions until coordinates exceed 15 bits + sign.
 
 HexCoord is a key component of the non-free HexKit package, and is fully described in HexKit's [documentation](http://settworks.com/images/pdf/HexKit%20Documentation.pdf). Discussion and modest support at http://www.settworks.com/forum/hexkit

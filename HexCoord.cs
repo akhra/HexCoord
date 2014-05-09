@@ -637,21 +637,13 @@ namespace Settworks.Hexagons {
 		public override bool Equals(object o)
 		{ return (o is HexCoord) && this == (HexCoord)o; }
 		public override int GetHashCode() {
-			return q&1 | (r&1)<<1 | (q&2)<<1 | (r&2)<<2 |
-			       (q&4)<<2 | (r&4)<<3 | (q&8)<<3 | (r&8)<<4 |
-			       (q&16)<<4 | (r&16)<<5 | (q&32)<<5 | (r&32)<<6 |
-			       (q&64)<<6 | (r&64)<<7 | (q&128)<<7 | (r&128)<<8 |
-			       (q&256)<<8 | (r&256)<<9 | (q&512)<<9 | (r&512)<<10 |
-			       (q&1024)<<10 | (r&1024)<<11 | (q&2048)<<11 | (r&2048)<<12 |
-			       (q&4096)<<12 | (r&4096)<<13 | (q&8192)<<13 | (r&8192)<<14 |
-			       (q&16384)<<14 | (r&16384)<<15 | (q&32768)<<15 | (r&32768)<<16;
+			return q & (int)0xFFFF | r<<16;
 		}
 
 		/*
 		 * Constants
 		 */
 
-		
 		/// <summary>
 		/// One sixth of a full rotation (radians).
 		/// </summary>
