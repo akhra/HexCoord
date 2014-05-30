@@ -11,16 +11,19 @@ namespace Settworks.Hexagons {
 	/// These are "pointy topped" hexagons. The q axis points right, and the r axis points up-right.
 	/// When converting to and from Unity coordinates, the length of a hexagon side is 1 unit.
 	/// </remarks>
+	[Serializable]
 	public struct HexCoord {
 
 		/// <summary>
 		/// Position on the q axis.
 		/// </summary>
-		public readonly int q;
+		[SerializeField]
+		public int q;
 		/// <summary>
 		/// Position on the r axis.
 		/// </summary>
-		public readonly int r;
+		[SerializeField]
+		public int r;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="Settworks.Hexagons.HexCoord"/> struct.
@@ -71,7 +74,7 @@ namespace Settworks.Hexagons {
 			if (q == 0 && r == 0) return 0;
 			if (q > 0 && r >= 0) return q + r;
 			if (q <= 0 && r > 0) return (-q < r)? r: -q;
-			if (q < 0) return Z;
+			if (q < 0) return -q - r;
 			return (-r > q)? -r: q;
 		}
 
@@ -117,6 +120,30 @@ namespace Settworks.Hexagons {
 		/// <param name="index">Index of the desired neighbor. Cyclically constrained 0..5.</param>
 		public HexCoord Neighbor(int index) {
 			return NeighborVector(index) + this;
+		}
+		
+		public HexCoord PolarNeighbor(bool CCW = false) {
+			if (q > 0) {
+				if (r < 0) {
+					if (q > -r) return this + neighbors[CCW? 1: 4];
+					if (q < -r) return this + neighbors[CCW? 0: 3];
+					return this + neighbors[CCW? 1: 3];
+				}
+				if (r > 0) return this + neighbors[CCW? 2: 5];
+				return this + neighbors[CCW? 2: 4];
+			}
+			if (q < 0) {
+				if (r > 0) {
+					if (r > -q) return this + neighbors[CCW? 3: 0];
+					if (r < -q) return this + neighbors[CCW? 4: 1];
+					return this + neighbors[CCW? 4: 0];
+				}
+				if (r < 0) return this + neighbors[CCW? 5: 2];
+				return this + neighbors[CCW? 5: 1];
+			}
+			if (r > 0) return this + neighbors[CCW? 3: 5];
+			if (r < 0) return this + neighbors[CCW? 0: 2];
+			return this;
 		}
 
 		/// <summary>
@@ -196,6 +223,7 @@ namespace Settworks.Hexagons {
 		/// The two polar bounding corners are those whose polar angles form the widest arc.
 		/// </remarks>
 		/// <param name="CCW">If set to <c>true</c>, gets the counterclockwise bounding corner.</param>
+		/// <param name="neighbor">If set to <c>true</c>, gets the other corner shared by the same ring-neighbor as normal return.</param>
 		public int PolarBoundingCornerIndex(bool CCW = false) {
 			if (q == 0 && r == 0) return 0;
 			if (q > 0 && r >= 0) return CCW?
@@ -215,7 +243,7 @@ namespace Settworks.Hexagons {
 				CCW?
 					(r < -2 * q)? 5: 0:
 					(r > -2 * q)? 3: 2:
-					CCW?
+				CCW?
 					(q < -2 * r)? 0: 1:
 					(q > -2 * r)? 4: 3;
 		}
@@ -302,15 +330,21 @@ namespace Settworks.Hexagons {
 		/// <summary>
 		/// Scale as a vector, truncating result.
 		/// </summary>
-		/// <returns>A new <see cref="Settworks.Hexagons.HexCoord"/> representing this one after scaling.</returns>
-		public HexCoord Scale(float factor)
-		{ return new HexCoord((int)(q * factor), (int)(r * factor)); }
+		/// <returns>This <see cref="Settworks.Hexagons.HexCoord"/> after scaling.</returns>
+		public HexCoord Scale(float factor) {
+			q = (int)(q * factor);
+			r = (int)(r * factor);
+			return this;
+		}
 		/// <summary>
 		/// Scale as a vector.
 		/// </summary>
-		/// <returns>A new <see cref="Settworks.Hexagons.HexCoord"/> representing this one after scaling.</returns>
-		public HexCoord Scale(int factor)
-		{ return new HexCoord(q * factor, r * factor); }
+		/// <returns>This <see cref="Settworks.Hexagons.HexCoord"/> after scaling.</returns>
+		public HexCoord Scale(int factor) {
+			q *= factor;
+			r *= factor;
+			return this;
+		}
 		/// <summary>
 		/// Scale as a vector.
 		/// </summary>
@@ -436,23 +470,18 @@ namespace Settworks.Hexagons {
 		/// </remarks>
 		/// <param name="first">Index of the first neighbor vector to enumerate.</param>
 		public static IEnumerable<HexCoord> NeighborVectors(int first = 0) {
-			if (first == 0) {
-				foreach (HexCoord hex in neighbors)
-					yield return hex;
-			} else {
-				first = NormalizeRotationIndex(first, 6);
-				for (int i = first; i < 6; i++)
-					yield return neighbors[i];
-				for (int i = 0; i < first; i++)
-			     yield return neighbors[i];
-			}
+			first = NormalizeRotationIndex(first, 6);
+			for (int i = first; i < 6; i++)
+				yield return neighbors[i];
+			for (int i = 0; i < first; i++)
+		     yield return neighbors[i];
 		}
 		
 		/// <summary>
 		/// Neighbor index of 0,0 through which a polar angle passes.
 		/// </summary>
 		public static int AngleToNeighborIndex(float angle)
-		{ return (int)Math.Round(angle / SEXTANT); }
+		{ return Mathf.RoundToInt(angle / SEXTANT); }
 		
 		/// <summary>
 		/// Polar angle for a neighbor of 0,0.
@@ -495,13 +524,26 @@ namespace Settworks.Hexagons {
 		/// Corner of 0,0 closest to a polar angle.
 		/// </summary>
 		public static int AngleToCornerIndex(float angle)
-		{ return (int)Math.Floor(angle / SEXTANT); }
+		{ return Mathf.FloorToInt(angle / SEXTANT); }
 
 		/// <summary>
 		/// Polar angle for a corner of 0,0.
 		/// </summary>
 		public static float CornerIndexToAngle(int index)
 		{ return (index + 0.5f) * SEXTANT; }
+
+		/// <summary>
+		/// Half sextant of 0,0 through which a polar angle passes.
+		/// </summary>
+		public static int AngleToHalfSextant(float angle)
+		{ return Mathf.RoundToInt(2 * angle / SEXTANT); }
+
+		/// <summary>
+		/// Polar angle at which a half sextant begins.
+		/// </summary>
+		public static float HalfSextantToAngle(int index)
+		{ return index * SEXTANT / 2; }
+
 		
 		/// <summary>
 		/// <see cref="Settworks.Hexagons.HexCoord"/> containing a Unity position.
@@ -540,7 +582,6 @@ namespace Settworks.Hexagons {
 		/// <param name="radius">Hex distance from 0,0.</param>
 		/// <param name="angle">Desired polar angle.</param>
 		public static int FindPolarIndex(int radius, float angle) {
-			if (radius == 0) return 0;
 			return (int)Math.Round(angle * radius * 3 / Mathf.PI);
 		}
 
@@ -605,14 +646,14 @@ namespace Settworks.Hexagons {
 				HexCoord.AtPosition(max)
 			};
 			Vector2 pos = results[0].Position();
-			if ((pos + corners[0]).y <= min.y || (pos + corners[5]).y >= min.y)
+			if (pos.y - 0.5f >= min.y)
 				results[0] += neighbors[4];
-			else if ((pos + corners[1]).x <= min.x)
+			else if (pos.x >= min.x)
 				results[0] += neighbors[3];
 			pos = results[1].Position();
-			if ((pos + corners[2]).y <= max.y || (pos + corners[3]).y >= max.y)
+			if (pos.y + 0.5f <= max.y)
 				results[1] += neighbors[1];
-			else if ((pos + corners[1]).x >= max.x)
+			else if (pos.x <= max.x)
 				results[1] += neighbors[0];
 			return results;
 		}

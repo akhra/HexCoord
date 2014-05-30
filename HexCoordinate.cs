@@ -1,10 +1,12 @@
-﻿using UnityEngine;
+﻿// If you are using Unity 4.5.0 or higher this class is NOT needed.
+
+using UnityEngine;
 using System;
 
 namespace Settworks.Hexagons {
 
 	/// <summary>Serializable hexagon grid coordinate.</summary>
-	/// <remarks><see cref="Settworks.Hexagons.HexCoord"/> is a struct for performance reasons, but Unity does not support serialization of structs. This serializable class is easily converted to and from <see cref="Settworks.Hexagons.HexCoord"/>, allowing it to be used in places where serialization is needed without affecting the performance of other logic.</remarks>
+	/// <remarks><see cref="Settworks.Hexagons.HexCoord"/> is a struct for performance reasons, but Unity before v4.5.0 did not support serialization of structs. This serializable class is easily converted to and from <see cref="Settworks.Hexagons.HexCoord"/>, allowing it to be used in places where serialization is needed without affecting the performance of other logic.</remarks>
 	[Serializable]
 	public class HexCoordinate {
 		[SerializeField]
