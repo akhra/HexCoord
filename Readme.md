@@ -2,7 +2,7 @@ HexCoord implements hexagonal grid geometry in C#. The main fork utilizes Unity'
 
 This is an implementation of [Amit Patel's constrained cubic axial coordinates](http://www.redblobgames.com/grids/hexagons/). Briefly, it uses two axes labeled q and r. The q axis is equivalent to the x axis of a Cartesian plane; but the r axis is 60 degrees from q, rather than the 90 degrees of a Cartesian y axis. HexCoord deviates from Amit's reference example in one way: the positive r axis extends up and right, rather than down and right.
 
-For performance reasons, HexCoord is a struct. Because Unity does not serialize structs, there is also a serializable HexCoordinate class which easily converts to and from HexCoord. Use the class where serialization is needed, and the struct everywhere else.
+For performance reasons, HexCoord is a struct. Because Unity did not serialize structs prior to version 4.5.0, there is also a serializable HexCoordinate class which easily converts to and from HexCoord. Use the class where serialization is needed in older Unity versions, and the struct everywhere else.
 
 ####Built-in operations include:
 - Conversion to and from Unity positions.
